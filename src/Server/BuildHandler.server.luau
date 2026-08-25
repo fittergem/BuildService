@@ -4,10 +4,9 @@ local Workspace = game:GetService("Workspace")
 
 local BuildService = require(ServerScriptService.BuildService)
 
-local sharedFolder = ReplicatedStorage.BuildService
-local BuildChecks = require(sharedFolder.BuildChecks)
+local BuildChecks = require(ReplicatedStorage.BuildChecks)
 
-local buildEvent = sharedFolder.BuildEvent
+local buildEvent = ReplicatedStorage.BuildEvent
 
 local plots = Workspace.Plots
 
