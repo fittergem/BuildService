@@ -41,11 +41,21 @@ function BuildService:GetPlot(plots: Folder)
 end
 
 local function StartSession()
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {}
+    params.FilterType = Enum.RaycastFilterType.Exclude
+
+    local function rayResult(x, y)
+        local unitRay = camera:ScreenPointToRay(x, y)
+        return Workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, params)
+    end
+
     camera.CameraType = Enum.CameraType.Scriptable
 
     RunService:BindToRenderStep("PlacementSession", Enum.RenderPriority.Camera.Value + 1, function()
         local mouse = UserInputService:GetMouseLocation()
-        
+        local mouseResult = rayResult(mouse.X, mouse.Y)
+        local hitPos = mouseResult.Position
     end)
 end
 
