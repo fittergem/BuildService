@@ -29,7 +29,7 @@ function BuildService:RequestSessionCancel()
 end
 
 function BuildService:GetPlot(plots: Folder)
-    for i, plot in pairs(plots:GetChildren) do
+    for i, plot in pairs(plots:GetChildren()) do
         if plot:GetAttribute("OwnerId") == player.UserId then
             BuildService.Plot = plot
             return plot
