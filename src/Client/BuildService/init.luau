@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
@@ -12,6 +11,9 @@ local Signal = require(ReplicatedStorage:WaitForChild("GoodSignal"))
 local BuildChecks = require(ReplicatedStorage:WaitForChild("BuildChecks"))
 local buildEvent = ReplicatedStorage:WaitForChild("BuildEvent")
 
+local RaycastService = require(script:WaitForChild("RaycastService"))
+local PositioningService = require(script:WaitForChild("PositioningService"))
+
 local BuildService = {}
 
 BuildService.ActiveSession = false
@@ -19,6 +21,10 @@ BuildService.CurrentObject = nil
 BuildService.Plot = nil
 
 BuildService.Warning = Signal.new()
+
+BuildService.GridSize = 4 -- In studs
+BuildService.GridEnabled = true -- Snaps positions to the above grid size
+BuildService.BoundsEnabled = true -- Prevents placement outside of plot
 
 function BuildService:RequestSessionStart()
     buildEvent:FireServer("start_session")
@@ -42,20 +48,30 @@ end
 
 local function StartSession()
     local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {}
     params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local function rayResult(x, y)
-        local unitRay = camera:ScreenPointToRay(x, y)
-        return Workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, params)
-    end
-
-    camera.CameraType = Enum.CameraType.Scriptable
+    --camera.CameraType = Enum.CameraType.Scriptable
 
     RunService:BindToRenderStep("PlacementSession", Enum.RenderPriority.Camera.Value + 1, function()
-        local mouse = UserInputService:GetMouseLocation()
-        local mouseResult = rayResult(mouse.X, mouse.Y)
-        local hitPos = mouseResult.Position
+        if BuildService.CurrentObject == nil then return end
+        if BuildService.Plot == nil then return end
+
+        params.FilterDescendantsInstances = {BuildService.CurrentObject}
+
+        local startCFrame = BuildService.CurrentObject:GetPivot()
+        local objectSize = BuildService.CurrentObject:GetExtentsSize()
+
+        local raycastResult = RaycastService:GetMouseHitPosition(params)
+        local hitPos = startCFrame.Position
+        
+        if raycastResult then
+            hitPos = raycastResult.Position
+        end
+
+        local snappedPos = PositioningService:SnapToGrid(hitPos, objectSize, BuildService.Plot, BuildService.GridSize, BuildService.BoundsEnabled)
+        local snappedCFrame = CFrame.new(snappedPos)
+
+        local newCFrame = startCFrame:Lerp(snappedCFrame, .05)
+        BuildService.CurrentObject:PivotTo(newCFrame)
     end)
 end
 

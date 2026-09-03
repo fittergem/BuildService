@@ -11,5 +11,7 @@ local buildEvent = ReplicatedStorage.BuildEvent
 local plots = Workspace.Plots
 
 buildEvent.OnServerEvent:Connect(function(player, action, buildData)
-	
+	if action == "start_session" then
+        buildEvent:FireClient(player, "start_session", {CanStart = true})
+    end
 end)
