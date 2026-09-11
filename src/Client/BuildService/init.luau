@@ -1,18 +1,19 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
-local camera = Workspace.CurrentCamera
 
 local Signal = require(ReplicatedStorage:WaitForChild("GoodSignal"))
 
 local BuildChecks = require(ReplicatedStorage:WaitForChild("BuildChecks"))
 local buildEvent = ReplicatedStorage:WaitForChild("BuildEvent")
+local buildRequest = ReplicatedStorage:WaitForChild("BuildRequest")
 
-local RaycastService = require(script:WaitForChild("RaycastService"))
-local PositioningService = require(script:WaitForChild("PositioningService"))
+local FreecamService = require(script:WaitForChild("FreecamService"))
+local ObjectService = require(script:WaitForChild("ObjectService"))
+local WallService = require(script:WaitForChild("WallService"))
+local FloorService = require(script:WaitForChild("FloorService"))
 
 local BuildService = {}
 
@@ -26,12 +27,44 @@ BuildService.GridSize = 4 -- In studs
 BuildService.GridEnabled = true -- Snaps positions to the above grid size
 BuildService.BoundsEnabled = true -- Prevents placement outside of plot
 
+local function StartSession()
+    FreecamService:EnableBuildCamera(BuildService.Plot.PlotBase)
+end
+
+local function StopSession()
+    RunService:UnbindFromRenderStep("PlacementSession")
+
+    if BuildService.CurrentObject ~= nil then
+        BuildService.CurrentObject:Destroy()
+        BuildService.CurrentObject = nil
+    end
+end
+
 function BuildService:RequestSessionStart()
-    buildEvent:FireServer("start_session")
+    local success, start = pcall(function()
+        return buildRequest:InvokeServer("start_session")
+    end)
+
+    if success and start then
+        BuildService.ActiveSession = true
+        BuildService.Plot = BuildService:GetPlot(workspace:WaitForChild("Plots"))
+        StartSession()
+    else
+        warn("[BuildService] - Request to start placement session failed")
+    end
 end
 
 function BuildService:RequestSessionCancel()
-    buildEvent:FireServer("stop_session")
+    local success, ended = pcall(function()
+        return buildRequest:InvokeServer("stop_session")
+    end)
+
+    if success and ended then
+        BuildService.ActiveSession = false
+        StopSession()
+    else
+        warn("[BuildService] - Request to terminate placement session failed")
+    end
 end
 
 function BuildService:GetPlot(plots: Folder)
@@ -46,58 +79,24 @@ function BuildService:GetPlot(plots: Folder)
     return nil
 end
 
-local function StartSession()
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    --camera.CameraType = Enum.CameraType.Scriptable
+function BuildService:SelectObject(name: string)
+    if not BuildService.ActiveSession then return end
+    if not BuildService.Plot then return end
 
-    RunService:BindToRenderStep("PlacementSession", Enum.RenderPriority.Camera.Value + 1, function()
-        if BuildService.CurrentObject == nil then return end
-        if BuildService.Plot == nil then return end
-
-        params.FilterDescendantsInstances = {BuildService.CurrentObject}
-
-        local startCFrame = BuildService.CurrentObject:GetPivot()
-        local objectSize = BuildService.CurrentObject:GetExtentsSize()
-
-        local raycastResult = RaycastService:GetMouseHitPosition(params)
-        local hitPos = startCFrame.Position
-        
-        if raycastResult then
-            hitPos = raycastResult.Position
-        end
-
-        local snappedPos = PositioningService:SnapToGrid(hitPos, objectSize, BuildService.Plot, BuildService.GridSize, BuildService.BoundsEnabled)
-        local snappedCFrame = CFrame.new(snappedPos)
-
-        local newCFrame = startCFrame:Lerp(snappedCFrame, .05)
-        BuildService.CurrentObject:PivotTo(newCFrame)
-    end)
+    ObjectService.Plot = BuildService.Plot
+    ObjectService:StartPlacement(name)
 end
 
-local function StopSession()
-    RunService:UnbindFromRenderStep("PlacementSession")
+function BuildService:SelectWall()
+    WallService:StartPlacement(BuildService.Plot, 4)
+end
 
-    if BuildService.CurrentObject ~= nil then
-        BuildService.CurrentObject:Destroy()
-        BuildService.CurrentObject = nil
-    end
-
-    camera.CameraType = Enum.CameraType.Custom
+function BuildService:SelectFloor()
+    FloorService:StartPlacement(BuildService.Plot, 4)
 end
 
 buildEvent.OnClientEvent:Connect(function(action: string, data: {any})
-    if action == "start_session" then
-        if data.CanStart then
-            BuildService.ActiveSession = true
-            StartSession()
-        else
-            BuildService.Warning:Fire("There was an error starting a build session. Please try again.")
-        end
-    elseif action == "stop_session" then
-        BuildService.ActiveSession = false
-        StopSession()
-    end
+    
 end)
 
 return BuildService

@@ -6,7 +6,7 @@ local camera = Workspace.CurrentCamera
 local RaycastService = {}
 
 local function Raycast(x: number, y: number, params: RaycastParams?)
-    local unitRay = camera:ScreenPointToRay(x, y)
+    local unitRay = camera:ViewportPointToRay(x, y)
     return Workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, params)
 end
 

@@ -24,4 +24,12 @@ function PlotService:SetPlotValue(value: number)
 	
 end
 
+function PlotService:GetPlayerPlot(player: Player)
+	for i, plot in pairs(plotsFolder:GetChildren()) do
+		if plot:GetAttribute("OwnerId") == player.UserId then
+			return plot
+		end
+	end
+end
+
 return PlotService
