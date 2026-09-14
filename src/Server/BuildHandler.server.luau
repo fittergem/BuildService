@@ -1,3 +1,4 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
@@ -32,5 +33,11 @@ buildRequest.OnServerInvoke = function(player, action, buildData)
         object.Parent = plot
         object:PivotTo(buildData.CFrame)
         return true
+    elseif action == "request_plot" then
+        return true
     end
 end
+
+Players.PlayerAdded:Connect(function(player)
+
+end)

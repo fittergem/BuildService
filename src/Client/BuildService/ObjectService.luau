@@ -4,14 +4,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local ObjectService = {}
 
-ObjectService.Plot = nil
-ObjectService.SessionActive = false
-
-ObjectService.CurrentGridSize = 4
-ObjectService.BoundsEnabled = true
-
 local RaycastService = require(script.Parent:WaitForChild("RaycastService"))
 local PositioningService = require(script.Parent:WaitForChild("PositioningService"))
+local Values = require(script.Parent:WaitForChild("Values"))
 
 local objectsFolder = ReplicatedStorage:WaitForChild("BuildObjects")
 
@@ -25,7 +20,7 @@ function ObjectService:Highlight(object: Model)
 end
 
 function ObjectService:StartPlacement(objectName: string)
-    if ObjectService.Plot == nil then
+    if Values.Plot == nil then
         warn("[BuildService] - Plot is nil")
         return
     end
@@ -45,10 +40,11 @@ function ObjectService:StartPlacement(objectName: string)
     params.FilterDescendantsInstances = {object}
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    ObjectService.SessionActive = true
+    Values.SessionActive = true
+    Values.CurrentPlaceMode = "Object"
 
     RunService:BindToRenderStep("ObjectPlacement", Enum.RenderPriority.Camera.Value + 1, function()
-        if not ObjectService.SessionActive then
+        if not Values.SessionActive then
             object:Destroy()
             return
         end
@@ -63,7 +59,7 @@ function ObjectService:StartPlacement(objectName: string)
             hitPos = raycastResult.Position
         end
 
-        local snappedPos = PositioningService:SnapToGrid(hitPos, objectSize, ObjectService.Plot, ObjectService.CurrentGridSize, ObjectService.BoundsEnabled)
+        local snappedPos = PositioningService:SnapToGrid(hitPos, objectSize, Values.Plot, Values.GridSize, Values.Bounds)
         local snappedCFrame = CFrame.new(snappedPos)
 
         local newCFrame = startCFrame:Lerp(snappedCFrame, .05)
@@ -78,7 +74,7 @@ function ObjectService:StartPlacement(objectName: string)
 
             if placed then
                 object:Destroy()
-                ObjectService.SessionActive = false
+                Values.SessionActive = false
             else
                 warn("[BuildService] - Object with name '" .. objectName .. "' was not placed. An error occured.")
             end
@@ -88,7 +84,7 @@ end
 
 function ObjectService:CancelPlacement()
     RunService:UnbindFromRenderStep("PlacementSession")
-    ObjectService.SessionActive = false
+    Values.SessionActive = false
 end
 
 return ObjectService

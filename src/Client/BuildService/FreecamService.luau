@@ -4,19 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local FreecamService = {}
 
-FreecamService.MoveSpeed = 50
-FreecamService.RotateSpeed = 2
-FreecamService.ZoomSpeed = 5
-FreecamService.MouseSensitivity = .005
-FreecamService.MinZoom = 10
-FreecamService.MaxZoom = 100
-FreecamService.HeightAbovePlot = 20
-FreecamService.PositionSmoothing = 20
-FreecamService.RotationSmoothing = 20
-FreecamService.PitchSmoothing = 10
-FreecamService.ZoomSmoothing = 10
-FreecamService.IsCameraActive = false
-FreecamService.Plot = nil
+local Values = require(script.Parent:WaitForChild("Values"))
 
 local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -38,15 +26,15 @@ local isRightMouseDown = false
 
 -- Get bounding limits from the plot BasePart
 local function GetPlotBounds()
-	local size = FreecamService.Plot.Size
-	local pos = FreecamService.Plot.Position
+	local size = Values.CurrentPlotBase.Size
+	local pos = Values.CurrentPlotBase.Position
 	return {
 		minX = pos.X - size.X / 2,
 		maxX = pos.X + size.X / 2,
 		minZ = pos.Z - size.Z / 2,
 		maxZ = pos.Z + size.Z / 2,
 		minY = pos.Y + 5,
-		maxY = pos.Y + FreecamService.MaxZoom
+		maxY = pos.Y + Values.MaxCamZoom
 	}
 end
 
@@ -61,7 +49,7 @@ end
 
 local function CalculateBasePitch(zoom: number)
     -- Normalize zoom from 0 (at MIN_ZOOM) to 1 (at MAX_ZOOM)
-	local alpha = (zoom - FreecamService.MinZoom) / (FreecamService.MaxZoom - FreecamService.MinZoom)
+	local alpha = (zoom - Values.MinCamZoom) / (Values.MaxCamZoom - Values.MinCamZoom)
 	alpha = math.clamp(alpha, 0, 1)
 
 	-- Non-linear curve (cubic ease): stays close to 1 (-45 deg) until passing halfway,
@@ -76,7 +64,7 @@ local function CalculateBasePitch(zoom: number)
 end
 
 local function UpdateCamera(dt: number)
-	if not FreecamService.IsCameraActive then return end
+	if not Values.FreecamActive then return end
 
 	-- Movement vectors based on camera orientation
 	local moveDir = Vector3.zero
@@ -87,11 +75,11 @@ local function UpdateCamera(dt: number)
 
 	-- Rotation inputs (Q / E)
 	if UserInputService:IsKeyDown(Enum.KeyCode.Q) then
-		targetYaw -= FreecamService.RotateSpeed * dt
+		targetYaw -= Values.CamRotateSpeed * dt
 	end
 
 	if UserInputService:IsKeyDown(Enum.KeyCode.E) then
-		targetYaw += FreecamService.RotateSpeed * dt
+		targetYaw += Values.CamRotateSpeed * dt
 	end
 
     -- Top view input
@@ -106,7 +94,7 @@ local function UpdateCamera(dt: number)
 	local worldMove = rotationCFrame:VectorToWorldSpace(moveDir)
 	
 	if worldMove.Magnitude > 0 then
-		worldMove = worldMove.Unit * FreecamService.MoveSpeed * dt
+		worldMove = worldMove.Unit * Values.CamMoveSpeed * dt
         targetPos = ClampToPlot(targetPos + worldMove)
     end
 
@@ -118,15 +106,23 @@ local function UpdateCamera(dt: number)
 	end
 
     -- 4. Smooth interpolation per property
-	local blendPos = 1 - math.exp(-FreecamService.PositionSmoothing * dt)
-	local blendYaw = 1 - math.exp(-FreecamService.RotationSmoothing * dt)
-	local blendPitch = 1 - math.exp(-FreecamService.PitchSmoothing * dt)
-	local blendZoom = 1 - math.exp(-FreecamService.ZoomSmoothing * dt)
+	local blendPos = 1 - math.exp(-Values.PositionSmoothing * dt)
+	local blendYaw = 1 - math.exp(-Values.RotationSmoothing * dt)
+	local blendPitch = 1 - math.exp(-Values.PitchSmoothing * dt)
+	local blendZoom = 1 - math.exp(-Values.ZoomSmoothing * dt)
 	
-	currentPos = currentPos:Lerp(targetPos, blendPos)
-	currentYaw = currentYaw + (targetYaw - currentYaw) * blendYaw
-	currentPitch = currentPitch + (targetPitch - currentPitch) * blendPitch
-	currentZoom = currentZoom + (targetZoom - currentZoom) * blendZoom
+    if Values.SmoothFreecam then
+        currentPos = currentPos:Lerp(targetPos, blendPos)
+        currentYaw = currentYaw + (targetYaw - currentYaw) * blendYaw
+        currentPitch = currentPitch + (targetPitch - currentPitch) * blendPitch
+        currentZoom = currentZoom + (targetZoom - currentZoom) * blendZoom
+    else
+        currentPos = targetPos
+        currentYaw = currentYaw + (targetYaw - currentYaw)
+        currentPitch = currentPitch + (targetPitch - currentPitch)
+        currentZoom = currentZoom + (targetZoom - currentZoom)
+    end
+	
 
     -- Clamp current smooth position to keep bounds crisp during heavy lerping
 	currentPos = ClampToPlot(currentPos)
@@ -140,21 +136,21 @@ end
 
 -- Input bindings for mouse interactions
 UserInputService.InputChanged:Connect(function(input, gameProcessed)
-	if gameProcessed or not FreecamService.IsCameraActive then return end
+	if gameProcessed or not Values.FreecamActive then return end
 
     -- Zooming with scroll wheel
 	if input.UserInputType == Enum.UserInputType.MouseWheel then
-		targetZoom = math.clamp(targetZoom - (input.Position.Z * FreecamService.ZoomSpeed), FreecamService.MinZoom, FreecamService.MaxZoom)
+		targetZoom = math.clamp(targetZoom - (input.Position.Z * Values.CamZoomSpeed), Values.MinCamZoom, Values.MaxCamZoom)
 	end
 
     -- Mouse drag rotation (Right Mouse Button)
 	if input.UserInputType == Enum.UserInputType.MouseMovement and isRightMouseDown then
-		targetYaw -= input.Delta.X * FreecamService.MouseSensitivity
+		targetYaw -= input.Delta.X * Values.CamMouseSensitivity
 	end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed or not FreecamService.IsCameraActive then return end
+	if gameProcessed or not Values.FreecamActive then return end
 
 	-- Right Mouse Button Pressed
 	if input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -172,12 +168,11 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
 end)
 
 -- Public functions to toggle the build camera mode
-function FreecamService:EnableBuildCamera(plot: BasePart)
-    FreecamService.Plot = plot
-	FreecamService.IsCameraActive = true
+function FreecamService:EnableBuildCamera()
+	Values.FreecamActive = true
 	camera.CameraType = Enum.CameraType.Scriptable
 
-	local initialPos = ClampToPlot(FreecamService.Plot.Position + Vector3.new(0, FreecamService.HeightAbovePlot, 0))
+	local initialPos = ClampToPlot(Values.CurrentPlotBase.Position + Vector3.new(0, Values.HeightAbovePlot, 0))
     targetPos = initialPos
     currentPos = initialPos
 
@@ -186,7 +181,7 @@ end
 
 function FreecamService:DisableBuildCamera()
     isRightMouseDown = false
-	FreecamService.IsCameraActive = false
+	Values.FreecamActive = false
 	RunService:UnbindFromRenderStep("BuildCamUpdate")
 	camera.CameraType = Enum.CameraType.Custom
 end

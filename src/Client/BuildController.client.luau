@@ -38,3 +38,5 @@ end)
 BuildService.Warning:Connect(function(warning: string)
     warn("[BuildService] - " .. warning)
 end)
+
+BuildService:RequestPlot()
