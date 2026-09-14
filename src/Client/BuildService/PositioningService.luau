@@ -1,5 +1,7 @@
 local PositioningService = {}
 
+local Values = require(script.Parent:WaitForChild("Values"))
+
 function PositioningService:SnapToGrid(position: Vector3 | CFrame, objectSize: Vector3, plot: Model, gridSize: number, bounds: boolean?)
     if bounds == nil then bounds = true end
 

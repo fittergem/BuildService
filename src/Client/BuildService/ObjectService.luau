@@ -42,15 +42,13 @@ function ObjectService:StartPlacement(objectName: string)
 
     Values.SessionActive = true
     Values.CurrentPlaceMode = "Object"
+    Values.SelectedObject = object
 
     RunService:BindToRenderStep("ObjectPlacement", Enum.RenderPriority.Camera.Value + 1, function()
         if not Values.SessionActive then
             object:Destroy()
             return
         end
-
-        local startCFrame = object:GetPivot()
-        local objectSize = object:GetExtentsSize()
 
         local raycastResult = RaycastService:GetMouseHitPosition(params)
         local hitPos = startCFrame.Position
@@ -59,7 +57,7 @@ function ObjectService:StartPlacement(objectName: string)
             hitPos = raycastResult.Position
         end
 
-        local snappedPos = PositioningService:SnapToGrid(hitPos, objectSize, Values.Plot, Values.GridSize, Values.Bounds)
+        local snappedPos = PositioningService:SnapToGrid(hitPos)
         local snappedCFrame = CFrame.new(snappedPos)
 
         local newCFrame = startCFrame:Lerp(snappedCFrame, .05)
@@ -84,7 +82,14 @@ end
 
 function ObjectService:CancelPlacement()
     RunService:UnbindFromRenderStep("PlacementSession")
+
+    if Values.SelectedObject ~= nil then
+        Values.SelectedObject:Destroy()
+        Values.SelectedObject = nil
+    end
+
     Values.SessionActive = false
+    Values.CurrentPlaceMode = "None"
 end
 
 return ObjectService
