@@ -6,6 +6,10 @@ local Values = {}
 
 -- TL;DR: Values are not constant. Values are updated constantly.
 
+-- Locations
+Values.ObjectsFolder = nil
+Values.PlotsFolder = nil
+
 -- Session Values
 Values.SessionActive = false
 Values.FreecamActive = false
@@ -22,7 +26,9 @@ Values.GridEnabled = true
 Values.Collisions = true
 Values.Bounds = true
 
--- Lerp Alphas
+-- Lerp Alpha
+Values.SmoothSnapping = true
+
 Values.SnapAlpha = .05
 
 -- Smoothing (Higher numbers = faster response / less "momentum")

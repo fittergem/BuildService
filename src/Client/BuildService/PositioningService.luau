@@ -1,32 +1,40 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local PositioningService = {}
 
 local Values = require(script.Parent:WaitForChild("Values"))
+local Checks = require(ReplicatedStorage:WaitForChild("BuildChecks"))
 
-function PositioningService:SnapToGrid(position: Vector3 | CFrame, objectSize: Vector3, plot: Model, gridSize: number, bounds: boolean?)
-    if bounds == nil then bounds = true end
+function PositioningService:SnapToGrid(hitPos: Vector3)
+    if not Values.CurrentPlotBase then return end
 
-    local basePart = plot:WaitForChild("PlotBase")
-    local position = typeof(position) == "CFrame" and position.Position or position
+	local objectSize
 
-	local cframe = basePart.CFrame
-	local size = basePart.Size
+	if Values.SelectedObject:IsA("Model") then
+		objectSize = Values.SelectedObject:GetExtentsSize()
+	elseif Values.SelectedObject:IsA("BasePart") then
+		objectSize = Values.SelectedObject.Size
+	end
+
+	local cframe = Values.CurrentPlotBase.CFrame
+	local size = Values.CurrentPlotBase.Size
 	
 	-- Convert global position to basePart local space
-	local localPos = cframe:PointToObjectSpace(position)
+	local localPos = cframe:PointToObjectSpace(hitPos)
 	
 	-- Centering offset for uneven grid divisions
-	local offsetX = (size.X % gridSize) / 2
-	local offsetZ = (size.Z % gridSize) / 2
+	local offsetX = (size.X % Values.GridSize) / 2
+	local offsetZ = (size.Z % Values.GridSize) / 2
 	
 	-- Snap local position to nearest grid point
-	local snappedX = math.floor((localPos.X - offsetX) / gridSize + 0.5) * gridSize + offsetX
-	local snappedZ = math.floor((localPos.Z - offsetZ) / gridSize + 0.5) * gridSize + offsetZ
+	local snappedX = math.floor((localPos.X - offsetX) / Values.GridSize + 0.5) * Values.GridSize + offsetX
+	local snappedZ = math.floor((localPos.Z - offsetZ) / Values.GridSize + 0.5) * Values.GridSize + offsetZ
 	
 	-- Place the object resting on top of the basePart surface
 	local snappedY = (size.Y / 2) + (objectSize.Y / 2)
 	
 	-- Clamp so the object's edges stay inside the plot boundaries
-	if bounds then
+	if Values.Bounds then
 		-- Maximum local extent allowed for the object's center point
 		local limitX = (size.X / 2) - (objectSize.X / 2)
 		local limitZ = (size.Z / 2) - (objectSize.Z / 2)
@@ -38,9 +46,16 @@ function PositioningService:SnapToGrid(position: Vector3 | CFrame, objectSize: V
 		snappedX = math.clamp(snappedX, -limitX, limitX)
 		snappedZ = math.clamp(snappedZ, -limitZ, limitZ)
 	end
+
+	local fianlCFrame = CFrame.new(snappedX, snappedY, snappedZ)
 	
-	-- Transform back to world space
-	return cframe:PointToWorldSpace(Vector3.new(snappedX, snappedY, snappedZ))
+	if Values.SmoothSnapping then
+		Values.SelectedObject:PivotTo(Values.SelectedObject:GetPivot():Lerp(fianlCFrame, Values.SnapAlpha))
+		return true
+	else
+		Values.SelectedObject:PivotTo(fianlCFrame)
+		return true
+	end
 end
 
 return PositioningService

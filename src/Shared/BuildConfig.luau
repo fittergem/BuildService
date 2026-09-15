@@ -1,9 +1,16 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
 local Config = {}
 
 -- NOTE: THESE ARE ALL DEFAULT VALUES
 -- Most values can be updated per-player by updating the Values.luau module
 -- For example, customizing keybinds, smooth snapping, freecam settings, etc. can all be done by updating the Values.luau module
 -- This module is for DEFAULT values or server-defined unchangeables (Constants)
+
+-- Locations
+Config.OBJECTS_FOLDER = ReplicatedStorage:WaitForChild("BuildObjects")
+Config.PLOTS_FOLDER = Workspace:WaitForChild("BuildPlots")
 
 -- Server constants
 Config.GRID_SIZES = {4, 2, 1}           -- In studs (First entry is the default size)

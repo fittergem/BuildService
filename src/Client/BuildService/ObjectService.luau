@@ -7,34 +7,42 @@ local ObjectService = {}
 local RaycastService = require(script.Parent:WaitForChild("RaycastService"))
 local PositioningService = require(script.Parent:WaitForChild("PositioningService"))
 local Values = require(script.Parent:WaitForChild("Values"))
-
-local objectsFolder = ReplicatedStorage:WaitForChild("BuildObjects")
+local Checks = require(ReplicatedStorage:WaitForChild("BuildChecks"))
 
 local buildRequest = ReplicatedStorage:WaitForChild("BuildRequest")
 
-function ObjectService:Highlight(object: Model)
+function ObjectService:ApplyHighlight(object: Model)
     local highlight = Instance.new("Highlight", object)
     highlight.FillColor = Color3.new(1,1,1)
     highlight.FillTransparency = .75
     highlight.OutlineTransparency = 1
 end
 
-function ObjectService:StartPlacement(objectName: string)
-    if Values.Plot == nil then
-        warn("[BuildService] - Plot is nil")
-        return
+function ObjectService:ChangeHighlightColor(object: Model, color: Color3)
+    local highlight = object:FindFirstChildOfClass("Highlight")
+
+    if not highlight then
+        return false
     end
 
-    local reference = objectsFolder:FindFirstChild(objectName)
+    highlight.FillColor = color
+    return true
+end
+
+function ObjectService:StartPlacement(objectName: string)
+    if Values.Plot == nil then
+        return false, "Plot is nil"
+    end
+
+    local reference = Values.ObjectsFolder:FindFirstChild(objectName)
 
     if not reference then
-        warn("[BuildService] - Object with name '" .. objectName .. "' does not exist in objects folder")
-        return
+        return false, "Object with name '" .. objectName .. "' does not exist in objects folder"
     end
 
     local object = reference:Clone()
     object.Parent = ObjectService.Plot
-    ObjectService:Highlight(object)
+    ObjectService:ApplyHighlight(object)
 
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {object}
@@ -46,22 +54,27 @@ function ObjectService:StartPlacement(objectName: string)
 
     RunService:BindToRenderStep("ObjectPlacement", Enum.RenderPriority.Camera.Value + 1, function()
         if not Values.SessionActive then
-            object:Destroy()
-            return
+            if Values.SelectedObject == nil then return end
+            Values.SelectedObject:Destroy()
+            return false, "Placement session not active"
+        end
+
+        if not Values.CurrentPlaceMode == "Object" then
+            return false, "Place mode is not set to 'Object'"
         end
 
         local raycastResult = RaycastService:GetMouseHitPosition(params)
-        local hitPos = startCFrame.Position
+        local hitPos = Values.SelectedObject:GetPivot().Position
         
         if raycastResult then
             hitPos = raycastResult.Position
         end
 
-        local snappedPos = PositioningService:SnapToGrid(hitPos)
-        local snappedCFrame = CFrame.new(snappedPos)
+        local success, warning = PositioningService:SnapToGrid(hitPos)
 
-        local newCFrame = startCFrame:Lerp(snappedCFrame, .05)
-        object:PivotTo(newCFrame)
+        if not success then
+            return warning
+        end
     end)
 
     UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
@@ -74,7 +87,7 @@ function ObjectService:StartPlacement(objectName: string)
                 object:Destroy()
                 Values.SessionActive = false
             else
-                warn("[BuildService] - Object with name '" .. objectName .. "' was not placed. An error occured.")
+                return false, "Object with name '" .. objectName .. "' was not placed. An error occured."
             end
         end
     end)
