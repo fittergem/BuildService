@@ -78,10 +78,22 @@ function BuildService:GetPlot(plots: Folder)
 end
 
 function BuildService:SelectObject(name: string)
-    if not Values.SessionActive then return end
-    if not Values.CurrentPlotBase then return end
+    if not Values.SessionActive then
+        BuildService.Warning:Fire("Object not selected: Session inactive")
+        return
+    end
 
-    ObjectService:StartPlacement(name)
+    if not Values.CurrentPlotBase then
+        BuildService.Warning:Fire("Object not selected: Plot base not found")
+        return
+    end
+
+    local success, warning = ObjectService:StartPlacement(name)
+
+    if not success then
+        BuildService.Warning:Fire(warning)
+    end
+
 end
 
 function BuildService:SelectWall()
