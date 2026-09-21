@@ -1,8 +1,11 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local PlotService = {}
 
-local plotsFolder = Workspace.Plots
+local Config = require(ReplicatedStorage.BuildConfig)
+
+local plotsFolder = Workspace.BuildPlots
 
 function PlotService:GetAllPlots()
 	return plotsFolder:GetChildren()
