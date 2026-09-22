@@ -7,8 +7,6 @@ local Signal = require(ReplicatedStorage.GoodSignal)
 local PlotService = require(script.PlotService)
 local SaveService = require(script.SaveService)
 
-local BuildChecks = require(ReplicatedStorage.BuildChecks)
-
 local buildEvent = ReplicatedStorage.BuildEvent
 local buildRequest = ReplicatedStorage.BuildRequest
 
@@ -38,6 +36,50 @@ function BuildService:PlaceObject(player: Player, name: string, cframe: CFrame)
     return true
 end
 
+local function CreatePole(cframe: CFrame)
+    local pole = Instance.new("Part")
+    pole.Shape = Enum.PartType.Cylinder
+    pole.Size = Vector3.new(Config.WALL_HEIGHT, Config.WALL_THICKNESS, Config.WALL_THICKNESS)
+    pole.CFrame = cframe
+    pole.Color = Config.DEFAULT_WALL_COLOR
+    pole.Material = Config.DEFAULT_WALL_MATERIAL
+    pole.CanCollide = true
+    pole.Anchored = true
+    pole:SetAttribute("Wall", true)
+    return pole
+end
+
+function BuildService:PlaceWall(player: Player, startCFrame: CFrame, endCFrame: CFrame)
+    local pole1 = CreatePole(startCFrame)
+    local pole2 = CreatePole(endCFrame)
+
+    local plot = PlotService:GetPlayerPlot(player)
+
+    local wall = Instance.new("Part")
+    wall.Color = Config.DEFAULT_WALL_COLOR
+    wall.Material = Config.DEFAULT_WALL_MATERIAL
+    wall.Anchored = true
+    wall.CanCollide = true
+    wall:SetAttribute("Wall", true)
+    
+    local distance = (startCFrame.Position - endCFrame.Position).Magnitude
+	
+	-- Keep wall floating height aligned with pole height center
+	local centerPosition = (startCFrame.Position + endCFrame.Position) / 2
+	
+	wall.Size = Vector3.new(Config.WALL_THICKNESS, Config.WALL_HEIGHT, distance)
+	wall.CFrame = CFrame.lookAt(centerPosition, endCFrame.Position)
+
+    local wallModel = Instance.new("Model", plot)
+    wallModel.Name = "Wall" .. #plot:GetChildren()
+
+    wall.Parent = wallModel
+    pole1.Parent = wallModel
+    pole2.Parent = wallModel
+
+    return true
+end
+
 buildRequest.OnServerInvoke = function(player, action, buildData)
 	if action == "start_session" then
         return true
@@ -45,6 +87,8 @@ buildRequest.OnServerInvoke = function(player, action, buildData)
         return true
     elseif action == "request_object_placement" then
         return BuildService:PlaceObject(player, buildData.Name, buildData.CFrame)
+    elseif action == "request_wall_placement" then
+        return BuildService:PlaceWall(player, buildData.Start, buildData.End)
     elseif action == "request_plot" then
         return true
     end

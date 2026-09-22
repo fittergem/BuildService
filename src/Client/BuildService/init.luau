@@ -37,7 +37,6 @@ end
 
 local Config = GetConfig()
 
-local BuildChecks = require(ReplicatedStorage:WaitForChild("BuildChecks"))
 local buildEvent = ReplicatedStorage:WaitForChild("BuildEvent")
 local buildRequest = ReplicatedStorage:WaitForChild("BuildRequest")
 
@@ -73,7 +72,14 @@ local currentZoom = targetZoom
 local isTopView = false
 local isRightMouseDown = false
 
-local inputConnection: RBXScriptSignal? = nil
+local inputBeganConnection: RBXScriptSignal? = nil
+local inputEndedConnection: RBXScriptSignal? = nil
+
+local wallStartPole = nil
+local wallEndPole = nil
+local currentWallPart = nil
+
+local currentSnappedCFrame = nil
 
 -- Config-based variables
 local camHeight = Config.CAM_HEIGHT
@@ -94,8 +100,31 @@ local camZoomSmoothing = Config.ZOOM_SMOOTHING
 
 local gridSize = Config.GRID_SIZES[1]
 local smoothSnapping = Config.SMOOTH_SNAPPING
-local snapAlpha = Config.SNAP_ALPHA
+local snapAlpha = math.clamp(Config.LERP_ALPHA, 0, 1)
 local boundsEnabled = Config.BOUNDS_ENABLED
+
+local poleSize = Config.POLE_DIAMETER
+local poleMaterial = Config.POLE_MATERIAL
+local currentPoleColor = Config.CURRENT_POLE_COLOR
+local startPoleColor = Config.START_POLE_COLOR
+local poleTransparency = Config.POLE_TRANSPARENCY
+
+local wallHeight = Config.WALL_HEIGHT
+local wallThickness = Config.WALL_THICKNESS
+local wallColor = Config.DEFAULT_WALL_COLOR
+local wallMaterial = Config.DEFAULT_WALL_MATERIAL
+
+local dragPlaceWall = Config.DRAG_PLACEMENT
+
+local highlightColor = Config.HIGHLIGHT_COLOR
+local collisionColor = Config.COLLISION_COLOR
+local deleteColor = Config.DELETE_COLOR
+local paintColor = Config.PAINT_COLOR
+local copyColor = Config.COPY_COLOR
+local transformColor = Config.TRANSFORM_COLOR
+
+local highlightFillTransparency = Config.HIGHLIGHT_FILL_TRANSPARENCY
+local highlightOutlineTransparency = Config.HIGHLIGHT_OUTLINE_TRANSPARENCY
 
 -- Get bounding limits from the plot BasePart
 local function GetFreecamBounds()
@@ -224,11 +253,16 @@ local function DisableBuildCamera()
 	camera.CameraType = Enum.CameraType.Custom
 end
 
+local function ChangeHighlightColor(highlight: Highlight, color: Color3)
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+end
+
 local function HighlightObject(object: Model)
     local highlight = Instance.new("Highlight", object)
-    highlight.FillColor = Color3.new(1,1,1)
-    highlight.FillTransparency = .75
-    highlight.OutlineTransparency = 1
+    ChangeHighlightColor(highlight, highlightColor)
+    highlight.FillTransparency = highlightFillTransparency
+    highlight.OutlineTransparency = highlightOutlineTransparency
     return highlight
 end
 
@@ -247,7 +281,24 @@ end
 local function CheckCollisions()
     local overlapParams = OverlapParams.new()
     overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-    overlapParams.FilterDescendantsInstances = {currentObject, plotBase}
+
+    local paramsInstances = {currentObject, plotBase}
+
+    for i, v in pairs(plot:GetDescendants()) do
+        if v:GetAttribute("Wall") then
+            table.insert(paramsInstances, v)
+        end
+    end
+
+    if placementMode == "Wall" then
+        table.insert(paramsInstances, wallStartPole)
+
+        if currentWallPart ~= nil then
+            table.insert(paramsInstances, currentWallPart)
+        end
+    end
+
+    overlapParams.FilterDescendantsInstances = paramsInstances
 
     if currentObject:IsA("Model") then
         local cframe, size = currentObject:GetBoundingBox()
@@ -269,6 +320,13 @@ local function SnapToGrid(hitPos: Vector3)
 
 	local objectSize = currentObject:IsA("Model") and currentObject:GetExtentsSize() or currentObject.Size
 
+    -- If the object is a upright cylinder, its physical height is Size.X instead of Size.Y
+    local height = objectSize.Y
+    local isCylinder = currentObject:IsA("BasePart") and currentObject.Shape == Enum.PartType.Cylinder
+    if isCylinder then
+        height = objectSize.X
+    end
+
 	local cframe = plotBase.CFrame
 	local size = plotBase.Size
 	
@@ -284,7 +342,7 @@ local function SnapToGrid(hitPos: Vector3)
 	local snappedZ = math.floor((localPos.Z - offsetZ) / gridSize + 0.5) * gridSize + offsetZ
 	
 	-- Place the object resting on top of the basePart surface
-	local snappedY = (size.Y / 2) + (objectSize.Y / 2)
+	local snappedY = (size.Y / 2) + (height / 2)
 	
 	-- Clamp so the object's edges stay inside the plot boundaries
 	if boundsEnabled then
@@ -296,21 +354,36 @@ local function SnapToGrid(hitPos: Vector3)
 		snappedZ = math.clamp(snappedZ, -limitZ, limitZ)
 	end
 
-	local finalCFrame = cframe * CFrame.new(snappedX, snappedY, snappedZ)
+	local targetCFrame = cframe * CFrame.new(snappedX, snappedY, snappedZ)
+    
+    -- Rotate cylinder 90 degrees on Z axis so its X-length stands vertically (upright along Y)
+    if isCylinder then
+        targetCFrame = targetCFrame * CFrame.Angles(0, 0, math.rad(90))
+    end
+
+    currentSnappedCFrame = targetCFrame
 	
 	if smoothSnapping then
-		currentObject:PivotTo(currentObject:GetPivot():Lerp(finalCFrame, snapAlpha))
+		if currentObject:IsA("Model") then
+            currentObject:PivotTo(currentObject:GetPivot():Lerp(currentSnappedCFrame, snapAlpha))
+        else
+            currentObject.CFrame = currentObject.CFrame:Lerp(currentSnappedCFrame, snapAlpha)
+        end
 	else
-		currentObject:PivotTo(finalCFrame)
+        if currentObject:IsA("Model") then
+            currentObject:PivotTo(currentSnappedCFrame)
+        else
+            currentObject.CFrame = currentSnappedCFrame
+        end
 	end
 end
 
 local function StopObjectPlacement()
     RunService:UnbindFromRenderStep("ObjectPlacement")
 
-    if inputConnection then
-        inputConnection:Disconnect()
-        inputConnection = nil
+    if inputBeganConnection then
+        inputBeganConnection:Disconnect()
+        inputBeganConnection = nil
     end
 
     if currentObject then
@@ -339,7 +412,7 @@ local function StartObjectPlacement(objectName: string)
         return
     end
 
-    if inputConnection then inputConnection:Disconnect() end
+    if inputBeganConnection then inputBeganConnection:Disconnect() end
 
     local object = reference:Clone()
     object.Parent = plot
@@ -368,29 +441,27 @@ local function StartObjectPlacement(objectName: string)
         isColliding = CheckCollisions()
 
         if isColliding then
-            highlight.FillColor = Color3.new(1,0,0)
+            ChangeHighlightColor(highlight, collisionColor)
         else
-            highlight.FillColor = Color3.new(1,1,1)
+            ChangeHighlightColor(highlight, highlightColor)
         end
     end)
 
-    inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    inputBeganConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
         if input.UserInputType == Enum.UserInputType.MouseButton1 and not gameProcessedEvent then
             if isColliding then
                 BuildService.Warning:Fire("Cannot place object: Object is colliding")
                 return
             end
 
-            local targetCFrame = currentObject:GetPivot()
-
             RunService:UnbindFromRenderStep("ObjectPlacement")
 
-            if inputConnection then
-                inputConnection:Disconnect()
-                inputConnection = nil
+            if inputBeganConnection then
+                inputBeganConnection:Disconnect()
+                inputBeganConnection = nil
             end
 
-            local placed = buildRequest:InvokeServer("request_object_placement", {Name = objectName, CFrame = targetCFrame})
+            local placed = buildRequest:InvokeServer("request_object_placement", {Name = objectName, CFrame = currentSnappedCFrame})
 
             if placed then
                 object:Destroy()
@@ -407,14 +478,13 @@ end
 local function CreatePole(): BasePart
 	local pole = Instance.new("Part")
 	pole.Shape = Enum.PartType.Cylinder
-	pole.Size = poleSize
-	pole.Orientation = Vector3.new(0, 0, 90) -- Orient cylinder upright
+	pole.Size = Vector3.new(wallHeight, poleSize, poleSize)
 	pole.Anchored = true
 	pole.CanCollide = false
-	pole.Material = Enum.Material.SmoothPlastic
-	pole.Color = Color3.fromRGB(150, 150, 150)
-    pole.Transparency = .5
-	pole.Parent = workspace
+	pole.Material = poleMaterial
+	pole.Color = currentPoleColor
+    pole.Transparency = poleTransparency
+	pole.Parent = plot
 	return pole
 end
 
@@ -423,9 +493,9 @@ local function CreateWall(): BasePart
 	local wall = Instance.new("Part")
 	wall.Anchored = true
 	wall.CanCollide = false
-	wall.Material = Enum.Material.SmoothPlastic
-	wall.Color = Color3.fromRGB(200, 200, 200)
-	wall.Parent = workspace
+	wall.Material = wallMaterial
+	wall.Color = wallColor
+	wall.Parent = plot
 	return wall
 end
 
@@ -440,115 +510,59 @@ local function UpdateWallBetweenPoints(wall: BasePart, p1: Vector3, p2: Vector3)
 	wall.CFrame = CFrame.lookAt(centerPosition, p2)
 end
 
--- Per-frame update loop
-local function OnRender()
-	local currentPos = GetSnappedMousePosition()
-	if not currentPos then return end
+local function LockStartPole(params)
+    -- Lock Pole 1 visually
+    if currentObject == wallStartPole then
+        wallStartPole.Color = startPoleColor
+        wallStartPole.CFrame = currentSnappedCFrame
+    end
 
-	if startPoint == nil then
-		-- Phase 1: Moving initial pole with mouse
-		if activePole1 then
-			activePole1.Position = activePole1.Position:Lerp(currentPos, .06)
-		end
-	else
-		-- Phase 2: Drawing wall from startPoint to current mouse position
-		if activePole2 then
-			activePole1.Position = activePole2.Position:Lerp(currentPos, .06)
-		end
-		if previewWall then
-			UpdateWallBetweenPoints(previewWall, startPoint, currentPos)
-		end
-	end
+    -- Create Pole 2 and preview wall segment
+    wallEndPole = CreatePole()
+    wallEndPole.CFrame = currentSnappedCFrame
+    currentObject = wallEndPole
+
+    currentWallPart = CreateWall()
+    params.FilterDescendantsInstances = {wallStartPole, wallEndPole, currentWallPart}
+
+    return params
 end
 
--- Handles left-click press (locks Pole 1, starts Pole 2 + preview wall)
-local function OnInputBegan(input: InputObject, gameProcessed: boolean)
-	if gameProcessed or not isPlacing then return end
+local function LockEndPole(params)
+    if wallEndPole then
+        local success, result = pcall(function()
+            buildRequest:InvokeServer("request_wall_placement", {Start = wallStartPole.CFrame, End = currentSnappedCFrame})
+        end)
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		local currentPos = GetSnappedMousePosition()
-		if not currentPos then return end
+        if not success then
+            BuildService.Warning:Fire("Wall placement encountered an error on the server")
+        end
 
-		startPoint = currentPos
+        -- Cleanup previews and start fresh for the next wall segment
+        if currentWallPart then currentWallPart:Destroy() currentWallPart = nil end
+        if wallStartPole then wallStartPole:Destroy() end
+        if wallEndPole then wallEndPole:Destroy() wallEndPole = nil end
+        
+        -- Reuse end position as the start pole for continuous wall building
+        wallStartPole = CreatePole()
+        currentObject = wallStartPole
+        params.FilterDescendantsInstances = {wallStartPole}
+    end
 
-		-- Lock Pole 1 visually
-		if activePole1 then
-			activePole1.Position = startPoint
-            activePole1.Transparency = 0
-		end
-
-		-- Create Pole 2 and preview wall segment
-		activePole2 = CreatePole()
-		activePole2.Position = currentPos
-
-		previewWall = CreateWall()
-		previewWall.Transparency = 0.5
-		UpdateWallBetweenPoints(previewWall, startPoint, currentPos)
-	end
-end
-
--- Handles left-click release (locks Pole 2, places solid wall, resets loop)
-local function OnInputEnded(input: InputObject, gameProcessed: boolean)
-	if not isPlacing or startPoint == nil then return end
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
-		local endPoint = GetSnappedMousePosition() or (activePole2 and activePole2.Position)
-
-		if endPoint and (startPoint - endPoint).Magnitude > 0.1 then
-			-- Solidify built wall
-			local finalWall = CreateWall()
-			finalWall.CanCollide = true
-			finalWall.Color = Color3.fromRGB(150, 150, 150)
-			UpdateWallBetweenPoints(finalWall, startPoint, endPoint)
-
-            -- Solidify start pole
-            if activePole1 then
-                activePole1.CanCollide = true
-                activePole1.Transparency = 0
-                activePole1 = nil
-            end
-
-			-- Solidify end pole
-			if activePole2 then
-				activePole2.CanCollide = true
-                activePole2.Transparency = 0
-				activePole2 = nil
-			end
-		else
-            if activePole1 then
-                activePole1:Destroy()
-                activePole1 = nil
-            end
-
-			-- Clean up active Pole 2 if placement distance was too small
-			if activePole2 then
-				activePole2:Destroy()
-				activePole2 = nil
-			end
-		end
-
-		-- Clean up temporary preview wall
-		if previewWall then
-			previewWall:Destroy()
-			previewWall = nil
-		end
-
-		startPoint = nil
-		activePole1 = CreatePole()
-	end
+    return params
 end
 
 local function StopWallPlacement()
-    isPlacing = false
-	startPoint = nil
+    placementMode = "None"
 
-	if renderConnection then renderConnection:Disconnect() end
+    RunService:UnbindFromRenderStep("WallPlacement")
+
 	if inputBeganConnection then inputBeganConnection:Disconnect() end
 	if inputEndedConnection then inputEndedConnection:Disconnect() end
 
-	if activePole1 then activePole1:Destroy() activePole1 = nil end
-	if activePole2 then activePole2:Destroy() activePole2 = nil end
-	if previewWall then previewWall:Destroy() previewWall = nil end
+	if wallStartPole then wallStartPole:Destroy() wallStartPole = nil end
+	if wallEndPole then wallEndPole:Destroy() wallEndPole = nil end
+	if currentWallPart then currentWallPart:Destroy() currentWallPart = nil end
 end
 
 local function StartWallPlacement()
@@ -562,16 +576,76 @@ local function StartWallPlacement()
         return
     end
 
-    if isPlacing then self:StopPlacement() end
+    placementMode = "Wall"
 
-	isPlacing = true
-	gridSize = gridStep or gridSize
+	wallStartPole = CreatePole()
+    currentObject = wallStartPole
 
-	activePole1 = CreatePole()
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {wallStartPole}
 
-	renderConnection = RunService.RenderStepped:Connect(OnRender)
-	inputBeganConnection = UserInputService.InputBegan:Connect(OnInputBegan)
-	inputEndedConnection = UserInputService.InputEnded:Connect(OnInputEnded)
+    local isColliding = false
+
+    RunService:BindToRenderStep("WallPlacement", Enum.RenderPriority.Camera.Value + 1, function(dt)
+        if not sessionActive or placementMode ~= "Wall" then
+            StopWallPlacement()
+            return
+        end
+
+        if currentObject ~= wallStartPole and currentObject ~= wallEndPole then return end
+
+        local raycastResult = GetMouseHitPosition(params)
+        local hitPos = raycastResult and raycastResult.Position or currentObject:GetPivot().Position
+
+        SnapToGrid(hitPos)
+
+        if currentWallPart then
+            UpdateWallBetweenPoints(currentWallPart, wallStartPole.Position, wallEndPole.Position)
+        end
+
+        isColliding = CheckCollisions()
+
+        if isColliding then
+            wallStartPole.Color = collisionColor
+
+            if wallEndPole ~= nil then
+                wallEndPole.Color = collisionColor
+            end
+            
+            if currentWallPart ~= nil then
+                currentWallPart.Color = collisionColor
+            end
+        else
+            wallStartPole.Color = currentObject == wallStartPole and currentPoleColor or startPoleColor
+            
+            if wallEndPole ~= nil then
+                wallEndPole.Color = currentPoleColor
+            end
+            
+            if currentWallPart ~= nil then
+                currentWallPart.Color = wallColor
+            end
+        end
+    end)
+
+	inputBeganConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and not gameProcessedEvent then
+            if currentObject == wallStartPole then
+                params = LockStartPole(params)
+            elseif currentObject == wallEndPole and not dragPlaceWall then
+                params = LockEndPole(params)
+            end
+        end
+    end)
+
+    inputEndedConnection = UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if currentObject == wallEndPole and dragPlaceWall then
+                params = LockEndPole(params)
+            end
+        end
+    end)
 end
 
 local function StartSession()
