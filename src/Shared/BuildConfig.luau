@@ -32,7 +32,7 @@ local Config = {
 
     SMOOTH_FREECAM = true,         -- If enabled, freecam will have simulated momentum and feel smoother
 
-    LERP_ALPHA = .4,               -- The alpha value of interpolation (Recommended between .1 and .5)
+    LERP_ALPHA = .2,               -- The alpha value of interpolation (Recommended between .1 and .5)
     SMOOTH_SNAPPING = true,        -- If enabled, objects being placed will lerp between grid positions
 
     -- Colors

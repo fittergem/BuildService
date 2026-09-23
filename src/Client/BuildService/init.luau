@@ -284,22 +284,29 @@ local function CheckCollisions()
 
     local paramsInstances = {currentObject, plotBase}
 
-    for i, v in pairs(plot:GetDescendants()) do
-        if v:GetAttribute("Wall") then
-            table.insert(paramsInstances, v)
-        end
-    end
-
+    -- Handle overlap if placing walls
     if placementMode == "Wall" then
+        -- Ensure the start pole doesn't get checked for collision
         table.insert(paramsInstances, wallStartPole)
 
+        -- Handle wall part collision with pole
         if currentWallPart ~= nil then
             table.insert(paramsInstances, currentWallPart)
         end
+
+        -- Ensure walls are able to be intersected by poles
+        for i, v in pairs(plot:GetDescendants()) do
+            if v:GetAttribute("Wall") then
+                table.insert(paramsInstances, v)
+            end
+        end
+
+        -- Eventually check for wall parts intersecting
     end
 
     overlapParams.FilterDescendantsInstances = paramsInstances
 
+    -- Check for parts intersecting
     if currentObject:IsA("Model") then
         local cframe, size = currentObject:GetBoundingBox()
         local parts = Workspace:GetPartBoundsInBox(cframe, size, overlapParams)
