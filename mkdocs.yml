@@ -1,0 +1,4 @@
+site_name: BuildService
+site_url: https://fittergem.github.io/BuildService
+theme:
+  name: material
