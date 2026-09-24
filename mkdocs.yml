@@ -25,14 +25,14 @@ theme:
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode    
-      primary: white
-      accent: light-blue
+      primary: light-blue
+      accent: white
     - scheme: default
       toggle:
         icon: material/toggle-switch-off-outline 
         name: Switch to dark mode
-      primary: white
-      accent: light-blue 
+      primary: light-blue
+      accent: white
 
 nav:
   - Home: index.md
