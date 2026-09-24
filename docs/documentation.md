@@ -30,7 +30,8 @@ end)
 ```
 
 !!! warning
-It's important to note that this event is fired **every** time a client attempts to place an object and there is a collision error. Repeated placement could result in several connections happening very frequently. If not handled properly, timed UI-based warnings could break.
+
+    It's important to note that this event is fired **every** time a client attempts to place an object and there is a collision error. Repeated placement could result in several connections happening very frequently. If not handled properly, timed UI-based warnings could break.
 
 ### .Error
 
@@ -49,7 +50,8 @@ end)
 ```
 
 !!! note
-Typically, BuildService errors should not happen. The only reason these errors might occur is because of definition errors in the configuration module. If you are getting errors from BuildService, please check that the configuration paths are correct.
+
+    Typically, BuildService errors should not happen. The only reason these errors might occur is because of definition errors in the configuration module. If you are getting errors from BuildService, please check that the configuration paths are correct.
 
 ### .SessionActive
 
@@ -92,7 +94,8 @@ end)
 ```
 
 !!! note
-BuildService warnings are not fatal. Script execution should not halt due to warnings. The system handles the events that cause the warnings to occur automatically.
+
+    BuildService warnings are not fatal. Script execution should not halt due to warnings. The system handles the events that cause the warnings to occur automatically.
 
 ### :RequestSessionStart()
 
@@ -149,7 +152,8 @@ end)
 ```
 
 !!! note
-In the above example, the system is set up to select objects based on the clicked button's name.
+
+    In the above example, the system is set up to select objects based on the clicked button's name.
 
 ### :SelectWall()
 
