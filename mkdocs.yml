@@ -1,7 +1,7 @@
 site_name: BuildService
 site_url: https://fittergem.github.io/BuildService
-repo_name: MadStudioRoblox/ProfileStore
-repo_url: https://github.com/MadStudioRoblox/ProfileStore
+repo_name: fittergem/BuildService
+repo_url: https://github.com/fittergem/BuildService
 
 theme:
   icon:
