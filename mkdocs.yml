@@ -11,6 +11,7 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.footer
     - toc.integrate
     - navigation.top
     - search.suggest
@@ -24,14 +25,14 @@ theme:
       toggle:
         icon: material/toggle-switch
         name: Switch to light mode    
-      primary: indigo
-      accent: lime
+      primary: white
+      accent: light-blue
     - scheme: default
       toggle:
         icon: material/toggle-switch-off-outline 
         name: Switch to dark mode
-      primary: indigo
-      accent: purple 
+      primary: white
+      accent: light-blue 
 
 nav:
   - Home: index.md
