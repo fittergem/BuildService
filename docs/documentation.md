@@ -99,8 +99,8 @@ end)
 
 ### :RequestSessionStart()
 
-```lua
-BuildService:RequestSessionStart() --> [bool]
+```
+BuildService:RequestSessionStart()
 ```
 
 Sends a request to the server through the [BuildRequest RemoteFunction](#buildrequest-remotefunction).
@@ -118,6 +118,10 @@ end)
 ```
 
 ### :RequestSessionStop()
+
+```
+BuildService:RequestSessionStop()
+```
 
 Sends a request to the server through the [BuildRequest RemoteFunction](#buildrequest-remotefunction).
 
@@ -177,4 +181,178 @@ end)
 
 ## BuildConfig Module
 
+A module containing all of the defualt configurations for BuildService. This module is **read-only**, meaning that external scripts can only read information from it, but cannot write new information to it.
+
+### GRID_SIZES
+
+```
+Config.GRID_SIZES   [table] -- {number}
+```
+
+A table of numbers representing grid sizes, in studs, that can be cycled through.
+
+!!! note
+
+    To disable the grid, set the only size to be `0`.
+
+    ```lua
+    Config.GRID_SIZES = {0}
+    ```
+
+### GRID_TEXTURE_ID
+
+```
+Config.GRID_TEXTURE_ID   [number] -- Image ID
+```
+
+The image ID of the grid texture to be displayed on the plot during placement sessions.
+
+!!! note
+
+    Set the ID to `0` to disable the grid texture.
+
+### ALLOW_GRID_TOGGLE
+
+```
+Config.ALLOW_GRID_TOGGLE   [bool]
+```
+
+Allow players to toggle the grid. If enabled, players can toggle between placing objects freely in the plot or snapping objects to a grid.
+
+### GRID_TOGGLE_GAMEPASS
+
+```
+Config.GRID_TOGGLE_GAMEPASS   [number] -- Gamepass ID
+```
+
+If players are able to toggle the grid on and off, this is an optional gamepass that players would be required to own before toggling the grid.
+
+!!! note
+
+    Set the ID to 0 to disable the gamepass requirement
+
+### BOUNDS_ENABLED
+
+### ALLOW_DISABLED_BOUNDS
+
+### BOUNDS_TOGGLE_GAMEPASS
+
+### ALLOW_COLLISIONS_OFF
+
+### COLLISIONS_TOGGLE_GAMEPASS
+
+### BASEMENT_LEVELS
+
+### BASEMENT_GAMEPASS
+
+### POSITION_SMOOTHING
+
+### ROTATION_SMOOTHING
+
+### PITCH_SMOOTHING
+
+### ZOOM_SMOOTHING
+
+### SMOOTH_FREECAM
+
+### LERP_ALPHA
+
+### SMOOTH_SNAPPING
+
+### HIGHLIGHT_COLOR
+
+### COLLISION_COLOR
+
+### DELETE_COLOR
+
+### PAINT_COLOR
+
+### COPY_COLOR
+
+### TRANSFORM_COLOR
+
+### HIGHLIGHT_FILL_TRANSPARENCY
+
+### HIGHLIGHT_OUTLINE_TRANSPARENCY
+
+### ROTATE_KEY
+
+### PAINT_KEY
+
+### DELETE_KEY
+
+### COPY_KEY
+
+### UNDO_KEY
+
+### REDO_KEY
+
+### TRANSFORM_KEY
+
+### LEVEL_UP_KEY
+
+### LEVEL_DOWN_KEY
+
+### CAM_FORWARD_KEY
+
+### CAM_BACKWARD_KEY
+
+### CAM_LEFT_KEY
+
+### CAM_RIGHT_KEY
+
+### CAM_ROTATE_LEFT_KEY
+
+### CAM_ROTATE_RIGHT_KEY
+
+### CAM_TOP_VIEW_KEY
+
+### CAM_MOVE_SPEED
+
+### CAM_ROTATE_SPEED
+
+### CAM_ZOOM_SPEED
+
+### CAM_MOUSE_SENSITIVITY
+
+### MIN_CAM_ZOOM
+
+### MAX_CAM_ZOOM
+
+### CAM_HEIGHT
+
+### DRAG_PLACEMENT
+
+### POLE_DIAMETER
+
+### WALL_HEIGHT
+
+### WALL_THICKNESS
+
+### CURRENT_POLE_COLOR
+
+### START_POLE_COLOR
+
+### POLE_MATERIAL
+
+### POLE_TRANSPARENCY
+
+### DEFAULT_WALL_COLOR
+
+### DEFUALT_WALL_MATERIAL
+
+### WALL_TRANSPARENCY
+
+### MAX_PLOT_WAIT_TIME
+
 ## BuildRequest RemoteFunction
+
+### start_session
+
+### stop_session
+
+### request_object_placement
+
+### request_plot
+
+### request_wall_placement
