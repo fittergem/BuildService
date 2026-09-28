@@ -217,7 +217,7 @@ The image ID of the grid texture to be displayed on the plot during placement se
 Config.ALLOW_GRID_TOGGLE   [bool]
 ```
 
-Allow players to toggle the grid. If enabled, players can toggle between placing objects freely in the plot or snapping objects to a grid.
+Allow players to toggle the grid. If `true`, players can toggle between placing objects freely in the plot or snapping objects to a grid.
 
 ### GRID_TOGGLE_GAMEPASS
 
@@ -229,13 +229,43 @@ If players are able to toggle the grid on and off, this is an optional gamepass 
 
 !!! note
 
-    Set the ID to 0 to disable the gamepass requirement
+    Set the ID to `0` to disable the gamepass requirement
 
 ### BOUNDS_ENABLED
 
+```
+Config.BOUNDS_ENABLED   [bool]
+```
+
+Enable or disable all plot bounds. If `false`, this forces the plot boundaries to remain disabled. When `true`, [`Config.ALLOW_DISABLED_BOUNDS`](#allow_disabled_bounds) can still disable the boundaries if player is allowed.
+
 ### ALLOW_DISABLED_BOUNDS
 
+```
+Config.ALLOW_DISABLED_BOUNDS   [bool]
+```
+
+Allow players to enable/disable plot boundaries. If `true`, players are allowed to toggle the plot boundaries on and off.
+
+!!! warning
+
+    This only works if [`Config.BOUNDS_ENABLED`](#bounds_enabled) is `true`.
+
 ### BOUNDS_TOGGLE_GAMEPASS
+
+```
+Config.BOUNDS_TOGGLE_GAMEPASS   [number] -- Gamepass ID
+```
+
+If [`Config.ALLOW_DISABLED_BOUNDS`](#allow_disabled_bounds) is `true`, this **optional** gamepass would be required in order for players to be able to turn plot boundaries off.
+
+!!! note
+
+    Plot boundaries default to on, so if player's don't have the gamepass the boundary will remain on.
+
+!!! note
+
+    Set the ID to `0` to disable the gamepass requirement
 
 ### ALLOW_COLLISIONS_OFF
 
