@@ -179,6 +179,56 @@ end)
 
 ## BuildService Server
 
+All of the server module properties and methods
+
+### .ActiveSessions
+
+```
+BuildService.ActiveSessions   [table] (read-only) -- {Player}
+```
+
+A read-only table of players actively placing.
+
+### .Warning
+
+```
+BuildService.Warning   [RBXScriptSignal]
+```
+
+### .Error
+
+```
+BuildService.Error   [RBXScriptSignal]
+```
+
+### :PlaceObject()
+
+```
+BuildService:PlaceObject(player: Player, cframe: CFrame) --> [bool]
+```
+
+Places an object on the given player's plot at the given cframe. Returns `true` if placed successfully and `false` if not placed successfully.
+
+### :PlaceWall()
+
+```
+BuildService:PlaceOWall(player: Player, startCFrame: CFrame, endCFrame: CFrame) --> [bool]
+```
+
+Creates a wall on the given player's plot between the given `startCFrame` and `endCFrame`. Returns `true` if placed successfully and `false` if not placed successfully.
+
+### :GetPlot()
+
+```
+BuildService:GetPlot(player: Player) --> [Model] or nil
+```
+
+Gets the given player's plot model. If not found (returns `nil`) a plot must be initalized using [`BuildService:SelectPlot()`](#selectplot) before placement can begin, unless [`Config.PLOT_REQUIRED`]() is disabled.
+
+### :GetSave()
+
+### :SelectPlot()
+
 ## BuildConfig Module
 
 A module containing all of the defualt configurations for BuildService. This module is **read-only**, meaning that external scripts can only read information from it, but cannot write new information to it.
